@@ -1,0 +1,79 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>League Schedule Viewer</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- app.js is a module so it can import Firebase SDKs -->
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <h1>League Schedule Viewer</h1>
+    <p class="subtitle">Upload your schedule JSON, pick a start date, and view rounds week-by-week.</p>
+  </header>
+
+  <!-- Admin bar (simple client-side gate) -->
+  <section class="admin-bar" aria-label="Admin controls">
+    <div class="admin-status">
+      <span id="adminBadge" class="badge badge-viewer" aria-live="polite">Viewer mode</span>
+    </div>
+    <div class="admin-actions">
+      <button id="adminLoginBtn" class="secondary" type="button">🔐 Admin Login</button>
+      <button id="adminLogoutBtn" class="secondary danger" type="button" hidden>🚪 Logout</button>
+    </div>
+  </section>
+
+  <section class="controls">
+    <!-- ADMIN-ONLY: Upload JSON -->
+    <div class="control-block" data-admin-only hidden>
+      <label for="jsonFile" class="label">Schedule JSON</label>
+      <input id="jsonFile" type="file" accept="application/json" />
+      <div id="dropZone" class="drop-zone" aria-label="Drop JSON file here" tabindex="0">
+        <strong>Drag & drop</strong> your JSON file here, or use the picker above
+      </div>
+      <details class="help">
+        <summary>Expected JSON format</summary>
+        <pre><code>[
+  { "round": 1, "team1": "Team A", "team2": "Team B" },
+  { "round": 1, "team1": "Team C", "team2": "Team D" },
+  { "round": 2, "team1": "Team A", "team2": "Team C" }
+]</code></pre>
+      </details>
+    </div>
+
+    <!-- ADMIN-ONLY: Start date -->
+    <div class="control-block" data-admin-only hidden>
+      <label for="startDate" class="label">League start date</label>
+      <input id="startDate" type="date" />
+    </div>
+
+    <!-- ADMIN-ONLY: Publish -->
+    <div class="control-row" data-admin-only hidden>
+      <button id="publishBtn" class="primary" type="button">Save & Publish</button>
+    </div>
+
+    <!-- Viewer tools (always visible) -->
+    <div class="control-row">
+      <button id="expandAllBtn" class="secondary" type="button">Expand all</button>
+      <button id="collapseAllBtn" class="secondary" type="button">Collapse all</button>
+    </div>
+
+    <div class="control-block">
+      <label for="search" class="label">Quick filter (team name)</label>
+      <input id="search" type="search" placeholder="Type to filter by team…" />
+    </div>
+
+    <div id="error" class="error" role="alert" hidden></div>
+  </section>
+
+  <nav id="roundNav" class="round-nav" hidden></nav>
+  <main id="schedule" class="schedule" aria-live="polite"></main>
+
+  <footer class="app-footer">
+    <p>Viewers load the latest published schedule from Firestore. Admin can upload + publish.</p>
+  </footer>
+</body>
+</html>
