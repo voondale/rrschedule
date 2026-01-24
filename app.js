@@ -1,7 +1,8 @@
 
-/* League Schedule Viewer — Firestore persistence
-   - Admin uploads JSON + start date and clicks Save & Publish -> writes to Firestore
-   - Everyone loads the latest schedule from Firestore on page load (plus realtime)
+/* League Schedule Viewer — Firestore persistence (v1.1)
+   - Admin clicks Save & Publish -> writes to Firestore (league/current)
+   - Everyone loads + listens realtime
+   - Extra guards + logs so failures are visible in UI/Console
 */
 (function(){
   const $ = (sel, ctx=document) => ctx.querySelector(sel);
@@ -18,12 +19,23 @@
   const roundNav = byId('roundNav');
   const searchInput = byId('search');
 
+  // Surface unexpected errors in the UI too
+  window.addEventListener('error', (e)=> showError(e.message || String(e)) );
+  window.addEventListener('unhandledrejection', (e)=> showError(e.reason?.message || String(e.reason)) );
+
   // ===== Firebase (CDN) dynamic import =====
   async function loadFirebase(){
     const v = '11.0.0';
-    const app = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`);
-    const fs  = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-firestore.js`);
-    return { app, fs };
+    try {
+      const app = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`);
+      const fs  = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-firestore.js`);
+      console.log('[viewer] Firebase SDK loaded');
+      return { app, fs };
+    } catch(e){
+      console.error('[viewer] Firebase load failed', e);
+      showError('Failed to load Firebase SDK (blocked network?). Use a bundled build if needed.');
+      throw e;
+    }
   }
 
   // ===== Replace with your Firebase web config =====
@@ -37,19 +49,14 @@
     measurementId: "G-SHV9VBV5LE"
   };
 
-  let docRef, getDoc, setDoc, onSnapshot, serverTimestamp;
+  let _docRef, _getDoc, _setDoc, _onSnapshot, _serverTimestamp;
 
   async function initFirestore(){
-    try{
-      const { app:{ initializeApp }, fs } = await loadFirebase();
-      const app = initializeApp(firebaseConfig);
-      const db = fs.getFirestore(app);
-      getDoc = fs.getDoc; setDoc = fs.setDoc; onSnapshot = fs.onSnapshot; serverTimestamp = fs.serverTimestamp;
-      const { doc } = fs; docRef = (path) => doc(db, ...path.split('/'));
-    }catch(e){
-      showError('Failed to load Firebase SDK. If your network blocks gstatic, use a bundled build.');
-      throw e;
-    }
+    const { app:{ initializeApp }, fs } = await loadFirebase();
+    const app = initializeApp(firebaseConfig);
+    const db = fs.getFirestore(app);
+    _getDoc = fs.getDoc; _setDoc = fs.setDoc; _onSnapshot = fs.onSnapshot; _serverTimestamp = fs.serverTimestamp;
+    const { doc } = fs; _docRef = (path) => doc(db, ...path.split('/'));
   }
 
   // ===== Utilities =====
@@ -82,7 +89,7 @@
       const date=addDays(startDate,(r-1)*7);
       const section=document.createElement('section'); section.className='round collapsed'; section.id=`round-${r}`;
       const header=document.createElement('div'); header.className='round-header'; header.innerHTML=`<div class="round-title">Round ${r}</div><div class="round-date">${fmtDate(date)}</div><div class="chev">▾</div>`; header.addEventListener('click', ()=>{ section.classList.toggle('collapsed'); });
-      const groupMap = groupByPlayerSet(matches);
+      const groupMap=groupByPlayerSet(matches);
       for(const {players, matches: gm} of groupMap.values()){
         const groupWrap=document.createElement('div'); groupWrap.className='group-wrap';
         const gHeader=document.createElement('div'); gHeader.className='group-header'; gHeader.innerHTML = `<h4 class="group-title">${escapeHtml(players.join(' • '))}</h4>`;
@@ -97,8 +104,7 @@
         });
         groupWrap.appendChild(gHeader); groupWrap.appendChild(list); section.appendChild(groupWrap);
       }
-      section.prepend(header);
-      frag.appendChild(section);
+      section.prepend(header); frag.appendChild(section);
     }
     scheduleEl.innerHTML=''; scheduleEl.appendChild(frag);
   }
@@ -120,8 +126,9 @@
   // ===== Firestore: Load for everyone =====
   async function fetchPublished(){
     try{
-      const ref = docRef('league/current');
-      const snap = await getDoc(ref);
+      if (!_docRef) { console.warn('[viewer] Firestore not ready yet'); return; }
+      const ref = _docRef('league/current');
+      const snap = await _getDoc(ref);
       if (!snap || !snap.exists()) return;
       const data = snap.data();
       if (Array.isArray(data.schedule) && typeof data.startDate === 'string'){
@@ -135,14 +142,15 @@
           if (startDateInput) startDateInput.value = data.startDate;
         }
       }
-    }catch(e){ console.warn('Failed to load published schedule:', e.message); }
+    }catch(e){ showError('Load failed: ' + (e?.message || e)); }
   }
 
   // ===== Firestore: realtime updates =====
   function listenRealtime(){
     try{
-      const ref = docRef('league/current');
-      onSnapshot(ref, (snap)=>{
+      if (!_docRef) return;
+      const ref = _docRef('league/current');
+      _onSnapshot(ref, (snap)=>{
         if (!snap || !snap.exists()) return;
         const data = snap.data();
         const start = parseDateInput(data.startDate);
@@ -153,29 +161,36 @@
         const first = document.querySelector('.round'); if (first) first.classList.remove('collapsed');
         if (startDateInput) startDateInput.value = data.startDate;
       });
-    }catch(e){ console.warn('Realtime disabled:', e.message); }
+    }catch(e){ console.warn('Realtime disabled:', e?.message || e); }
   }
 
   // ===== Admin: Save & Publish to Firestore =====
   loadBtn.addEventListener('click', async ()=>{
     try{
       showError('');
+      if (!_docRef) throw new Error('Firestore not initialized yet. Wait a moment and try again.');
       const file=fileInput.files?.[0]; if(!file) throw new Error('Please choose or drop a schedule JSON file.');
       const startISO = startDateInput.value; const start=parseDateInput(startISO); if(!start) throw new Error('Please pick a valid league start date.');
       const data = await readJsonFile(file);
       const normalized = normalizeItems(Array.isArray(data)?data:[]);
       validateNormalized(normalized);
-      const ref = docRef('league/current');
-      await setDoc(ref, { startDate: startISO, schedule: data, updatedAt: serverTimestamp() });
+
+      // disable button while saving to prevent double clicks
+      loadBtn.disabled = true; loadBtn.textContent = 'Publishing…';
+      const ref = _docRef('league/current');
+      await _setDoc(ref, { startDate: startISO, schedule: data, updatedAt: _serverTimestamp() });
       await fetchPublished();
       alert('Schedule published to Firestore.');
     }catch(e){ showError(e.message || String(e)); }
+    finally{ loadBtn.disabled = false; loadBtn.textContent = 'Save & Publish'; }
   });
 
   // ===== Init =====
   document.addEventListener('DOMContentLoaded', async ()=>{
-    await initFirestore();
-    await fetchPublished();
-    listenRealtime();
+    try{
+      await initFirestore();
+      await fetchPublished();
+      listenRealtime();
+    }catch{}
   });
 })();
