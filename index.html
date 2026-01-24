@@ -6,8 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>League Schedule Viewer</title>
   <link rel="stylesheet" href="styles.css" />
-  <!-- app.js is a module so it can import Firebase SDKs -->
-  <script type="module" src="app.js"></script>
 </head>
 <body>
   <header class="app-header">
@@ -15,20 +13,8 @@
     <p class="subtitle">Upload your schedule JSON, pick a start date, and view rounds week-by-week.</p>
   </header>
 
-  <!-- Admin bar (simple client-side gate) -->
-  <section class="admin-bar" aria-label="Admin controls">
-    <div class="admin-status">
-      <span id="adminBadge" class="badge badge-viewer" aria-live="polite">Viewer mode</span>
-    </div>
-    <div class="admin-actions">
-      <button id="adminLoginBtn" class="secondary" type="button">🔐 Admin Login</button>
-      <button id="adminLogoutBtn" class="secondary danger" type="button" hidden>🚪 Logout</button>
-    </div>
-  </section>
-
   <section class="controls">
-    <!-- ADMIN-ONLY: Upload JSON -->
-    <div class="control-block" data-admin-only hidden>
+    <div class="control-block">
       <label for="jsonFile" class="label">Schedule JSON</label>
       <input id="jsonFile" type="file" accept="application/json" />
       <div id="dropZone" class="drop-zone" aria-label="Drop JSON file here" tabindex="0">
@@ -44,19 +30,13 @@
       </details>
     </div>
 
-    <!-- ADMIN-ONLY: Start date -->
-    <div class="control-block" data-admin-only hidden>
+    <div class="control-block">
       <label for="startDate" class="label">League start date</label>
       <input id="startDate" type="date" />
     </div>
 
-    <!-- ADMIN-ONLY: Publish -->
-    <div class="control-row" data-admin-only hidden>
-      <button id="publishBtn" class="primary" type="button">Save & Publish</button>
-    </div>
-
-    <!-- Viewer tools (always visible) -->
     <div class="control-row">
+      <button id="loadBtn" class="primary" type="button">Save & Publish</button>
       <button id="expandAllBtn" class="secondary" type="button">Expand all</button>
       <button id="collapseAllBtn" class="secondary" type="button">Collapse all</button>
     </div>
@@ -73,7 +53,9 @@
   <main id="schedule" class="schedule" aria-live="polite"></main>
 
   <footer class="app-footer">
-    <p>Viewers load the latest published schedule from Firestore. Admin can upload + publish.</p>
+    <p>Schedule is persisted in Firestore so everyone sees the latest.</p>
   </footer>
+
+  <script src="app.js" defer></script>
 </body>
 </html>
