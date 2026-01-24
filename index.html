@@ -1,11 +1,13 @@
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>League Schedule Viewer</title>
   <link rel="stylesheet" href="styles.css" />
+  <!-- app.js is a module so it can import Firebase SDKs -->
+  <script type="module" src="app.js"></script>
 </head>
 <body>
   <header class="app-header">
@@ -13,14 +15,14 @@
     <p class="subtitle">Upload your schedule JSON, pick a start date, and view rounds week-by-week.</p>
   </header>
 
-  <!-- Admin/Auth bar (Option B: writes require Firebase Auth) -->
+  <!-- Admin bar (simple client-side gate) -->
   <section class="admin-bar" aria-label="Admin controls">
     <div class="admin-status">
       <span id="adminBadge" class="badge badge-viewer" aria-live="polite">Viewer mode</span>
     </div>
     <div class="admin-actions">
-      <button id="signInBtn" class="secondary" type="button">🔐 Sign in</button>
-      <button id="signOutBtn" class="secondary danger" type="button" hidden>🚪 Sign out</button>
+      <button id="adminLoginBtn" class="secondary" type="button">🔐 Admin Login</button>
+      <button id="adminLogoutBtn" class="secondary danger" type="button" hidden>🚪 Logout</button>
     </div>
   </section>
 
@@ -71,22 +73,7 @@
   <main id="schedule" class="schedule" aria-live="polite"></main>
 
   <footer class="app-footer">
-    <p>Viewers load the latest published schedule from Firestore. Admins must sign in to publish (Option B rules).</p>
+    <p>Viewers load the latest published schedule from Firestore. Admin can upload + publish.</p>
   </footer>
-
-  <!-- Bootstrap fallback: ensures Sign in always responds -->
-  <script>
-    (function(){
-      var btn = document.getElementById('signInBtn');
-      if (!btn) return;
-      btn.addEventListener('click', function(){
-        if (window.__appSignIn) { window.__appSignIn(); }
-        else { alert('App is still loading or the Firebase SDK was blocked. Try a hard refresh (Ctrl+F5) or serve over http:// (e.g., python -m http.server).'); }
-      });
-    })();
-  </script>
-
-  <!-- Main app as ES module (imports Firebase from CDN) -->
-  <script type="module" src="app.js"></script>
 </body>
 </html>

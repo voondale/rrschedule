@@ -1,16 +1,32 @@
 
-# League Schedule Viewer — Firestore (Option B)
+# League Schedule Viewer — Firestore persistence
 
-This build persists the schedule to Firestore. **Everyone can read**, and **only authenticated users can write**.
+This front-end writes the published schedule to **Cloud Firestore** so all viewers see the same data.
 
-## 1) Firebase setup
-- Create a Firebase project, enable **Firestore**.
-- Enable **Authentication → Sign-in method → Email/Password**.
-- Create at least one admin user under **Authentication → Users**.
-- Paste your web app config into `app.js` (the `firebaseConfig` object).
+## 1) Enable Firebase + Firestore
+1. Create a Firebase project (or use your existing one).
+2. Enable **Firestore** in production mode.
+3. Copy your web app credentials from **Project settings → General → Your apps (Web)** and paste into `app.js` (the `firebaseConfig` object).
 
-## 2) Firestore Security Rules (Option B)
+## 2) (Recommended) Security Rules
+Open Firestore → Rules and publish one of the options below.
+
+**Option A — Quick demo (read open, write open)**
+```rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /league/{doc} {
+      allow read: if true;
+      allow write: if true; // NOT FOR PRODUCTION
+    }
+  }
+}
 ```
+
+**Option B — Safer (read open, write requires auth)**
+Enable Firebase Auth (Email/Password) and sign in as admin before publishing.
+```rules
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -21,20 +37,33 @@ service cloud.firestore {
   }
 }
 ```
-Publish these in the Firebase console.
+Then in your code, sign in with `signInWithEmailAndPassword` before saving.
+
+**Option C — Strict (allow writes only to a specific admin UID)**
+```rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /league/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid in ["YOUR_ADMIN_UID"];
+    }
+  }
+}
+```
+
+> This repo keeps a simple client-side password to toggle the admin UI only. Real write-protection should be implemented with Firestore **Rules** + **Auth** as in Option B/C.
 
 ## 3) Run locally
-Serve with any static server (modules require http):
+Serve over HTTP (modules + CORS):
 ```bash
 python -m http.server 8000
-# open http://localhost:8000
+# then open http://localhost:8000
 ```
 
 ## 4) Admin flow
-- Click **Sign in** → enter the admin email + password (from Firebase Auth Users).
-- Upload JSON, set **start date**, click **Save & Publish**.
-- The document `league/current` is written and all viewers load it on open (and via realtime updates).
+1. Click **Admin Login** → enter `doubletrouble` (UI only).
+2. Choose a JSON file and set a **start date**.
+3. Click **Save & Publish** → writes `{ schedule, startDate, updatedAt }` into `league/current`.
+4. All viewers load the latest doc on page load; realtime updates are enabled.
 
-## 5) Notes
-- If you prefer to limit writes to a specific UID, change the Rules to Option C.
-- If your Sign-in click shows a message that the app is still loading, hard-refresh (Ctrl+F5) or ensure you are serving over HTTP.
