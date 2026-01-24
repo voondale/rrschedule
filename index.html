@@ -3,41 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>League Schedule Viewer</title>
+  <title>League Schedule Viewer (Firestore)</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="app-header">
     <h1>League Schedule Viewer</h1>
-    <p class="subtitle">Upload your schedule JSON, pick a start date, and view rounds week-by-week.</p>
+    <p class="subtitle">Loads matches from Firestore and renders rounds week-by-week.</p>
   </header>
 
   <section class="controls">
     <div class="control-block">
-      <label for="jsonFile" class="label">Schedule JSON</label>
-      <input id="jsonFile" type="file" accept="application/json" />
-      <div id="dropZone" class="drop-zone" aria-label="Drop JSON file here" tabindex="0">
-        <strong>Drag & drop</strong> your JSON file here, or use the picker above
-      </div>
-      <details class="help">
-        <summary>Expected JSON format</summary>
-        <pre><code>[
-  { "round": 1, "team1": "Team A", "team2": "Team B" },
-  { "round": 1, "team1": "Team C", "team2": "Team D" },
-  { "round": 2, "team1": "Team A", "team2": "Team C" }
-]</code></pre>
-      </details>
-    </div>
-
-    <div class="control-block">
       <label for="startDate" class="label">League start date</label>
       <input id="startDate" type="date" />
-    </div>
-
-    <div class="control-row">
-      <button id="loadBtn" class="primary" type="button">Save & Publish</button>
-      <button id="expandAllBtn" class="secondary" type="button">Expand all</button>
-      <button id="collapseAllBtn" class="secondary" type="button">Collapse all</button>
+      <div class="control-row" style="margin-top:8px">
+        <button id="saveStartDateBtn" class="secondary">Save start date</button>
+        <button id="loadBtn" class="primary">Load schedule</button>
+        <button id="expandAllBtn" class="secondary">Expand all</button>
+        <button id="collapseAllBtn" class="secondary">Collapse all</button>
+      </div>
     </div>
 
     <div class="control-block">
@@ -52,9 +36,10 @@
   <main id="schedule" class="schedule" aria-live="polite"></main>
 
   <footer class="app-footer">
-    <p>Schedule is persisted in Firestore so everyone sees the latest.</p>
+    <p>Schedule and start date are loaded from Firestore.</p>
   </footer>
 
-  <script src="app.js?v=1.1" defer></script>
+  <!-- App -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
