@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>League Schedule Viewer</title>
   <link rel="stylesheet" href="styles.css" />
-  <!-- app.js is a module so it can import Firebase SDKs -->
+  <!-- ES module so we can import Firebase SDKs directly -->
   <script type="module" src="app.js"></script>
 </head>
 <body>
@@ -15,14 +15,14 @@
     <p class="subtitle">Upload your schedule JSON, pick a start date, and view rounds week-by-week.</p>
   </header>
 
-  <!-- Admin bar (simple client-side gate) -->
+  <!-- Admin/Auth bar (Option B: writes require Firebase Auth) -->
   <section class="admin-bar" aria-label="Admin controls">
     <div class="admin-status">
       <span id="adminBadge" class="badge badge-viewer" aria-live="polite">Viewer mode</span>
     </div>
     <div class="admin-actions">
-      <button id="adminLoginBtn" class="secondary" type="button">🔐 Admin Login</button>
-      <button id="adminLogoutBtn" class="secondary danger" type="button" hidden>🚪 Logout</button>
+      <button id="signInBtn" class="secondary" type="button">🔐 Sign in</button>
+      <button id="signOutBtn" class="secondary danger" type="button" hidden>🚪 Sign out</button>
     </div>
   </section>
 
@@ -73,7 +73,7 @@
   <main id="schedule" class="schedule" aria-live="polite"></main>
 
   <footer class="app-footer">
-    <p>Viewers load the latest published schedule from Firestore. Admin can upload + publish.</p>
+    <p>Viewers load the latest published schedule from Firestore. Admins must sign in to publish (Option B rules).</p>
   </footer>
 </body>
 </html>

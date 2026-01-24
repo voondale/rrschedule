@@ -1,12 +1,12 @@
 
-// League Schedule Viewer — Firestore persistence (front-end only)
-// NOTE: This uses a simple client-side password for admin UI (demo only).
+// League Schedule Viewer — Firestore (Option B: read open, write requires Auth)
+// Uses Firebase Auth (Email/Password) to control publishing rights.
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
 import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
 
-// ====== 0) Configure Firebase ======
-// Replace these placeholders with your project's credentials (Firebase console -> Project settings):
+// ===== 0) Configure Firebase (replace placeholders) =====
 const firebaseConfig = {
     apiKey: "AIzaSyA_PzKtYWZqRkOdJBakWsa6I5KPx0idm6E",
     authDomain: "kcschedule.firebaseapp.com",
@@ -19,32 +19,36 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const SCHEDULE_DOC = doc(db, 'league', 'current'); // single shared document
+const auth = getAuth(app);
+const SCHEDULE_DOC = doc(db, 'league', 'current');
 
-// ====== 1) Admin gate (client-side, simple) ======
-const ADMIN_PASSWORD = 'doubletrouble';
-const ADMIN_FLAG_KEY = 'leagueViewer:isAdmin';
+// ===== 1) UI/admin state driven by Auth =====
 const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
 const byId = (id) => document.getElementById(id);
 
-function setAdminMode(isAdmin){
-  try { sessionStorage.setItem(ADMIN_FLAG_KEY, isAdmin ? '1' : '0'); } catch {}
+function setAdminMode(user){
+  const isAdmin = !!user; // Option B: any authenticated user may write
   $$('[data-admin-only]').forEach(el => { el.hidden = !isAdmin; el.querySelectorAll('input,button,select,textarea').forEach(c=> c.disabled = !isAdmin); });
-  const loginBtn = byId('adminLoginBtn'); const logoutBtn = byId('adminLogoutBtn');
-  if (loginBtn) loginBtn.hidden = !!isAdmin; if (logoutBtn) logoutBtn.hidden = !isAdmin;
-  const badge = byId('adminBadge'); if (badge){ badge.textContent = isAdmin ? 'Admin mode' : 'Viewer mode'; badge.classList.toggle('badge-admin', !!isAdmin); badge.classList.toggle('badge-viewer', !isAdmin); }
+  const signInBtn = byId('signInBtn'); const signOutBtn = byId('signOutBtn');
+  if (signInBtn) signInBtn.hidden = isAdmin; if (signOutBtn) signOutBtn.hidden = !isAdmin;
+  const badge = byId('adminBadge'); if (badge){ badge.textContent = isAdmin ? 'Admin mode' : 'Viewer mode'; badge.classList.toggle('badge-admin', isAdmin); badge.classList.toggle('badge-viewer', !isAdmin); }
 }
-function isAdmin(){ try { return sessionStorage.getItem(ADMIN_FLAG_KEY) === '1'; } catch { return false; } }
 
-byId('adminLoginBtn')?.addEventListener('click', ()=>{
-  const pwd = (prompt('Enter admin password:') || '').trim();
-  if (pwd === ADMIN_PASSWORD) setAdminMode(true); else if (pwd) alert('Incorrect password.');
+onAuthStateChanged(auth, (user)=> setAdminMode(user));
+
+byId('signInBtn')?.addEventListener('click', async ()=>{
+  const email = (prompt('Enter admin email:') || '').trim();
+  const password = (prompt('Enter password:') || '').trim();
+  if (!email || !password) return;
+  try { await signInWithEmailAndPassword(auth, email, password); }
+  catch(e){ alert('Sign in failed: ' + (e?.message || e)); }
 });
-byId('adminLogoutBtn')?.addEventListener('click', ()=> setAdminMode(false));
 
-document.addEventListener('DOMContentLoaded', ()=> setAdminMode(isAdmin()));
+byId('signOutBtn')?.addEventListener('click', async ()=>{
+  try { await signOut(auth); } catch(e){ alert('Sign out failed: ' + (e?.message || e)); }
+});
 
-// ====== 2) DOM elements ======
+// ===== 2) Elements & utilities =====
 const fileInput = byId('jsonFile');
 const dropZone = byId('dropZone');
 const startDateInput = byId('startDate');
@@ -56,7 +60,6 @@ const scheduleEl = byId('schedule');
 const roundNav = byId('roundNav');
 const searchInput = byId('search');
 
-// ====== 3) Utilities ======
 function showError(msg){ errorBox.textContent = msg; errorBox.hidden = !msg; }
 function parseDateInput(value){ const parts=value?.split('-'); if(!parts||parts.length!==3) return null; const [y,m,d]=parts.map(Number); const dt=new Date(y,m-1,d); return isNaN(dt)?null:dt; }
 function addDays(date, days){ const dt=new Date(date); dt.setDate(dt.getDate()+days); return dt; }
@@ -122,17 +125,17 @@ searchInput.addEventListener('input', applyFilter);
 expandAllBtn.addEventListener('click', ()=>{ $$('.round', scheduleEl).forEach(r=> r.classList.remove('collapsed')); });
 collapseAllBtn.addEventListener('click', ()=>{ $$('.round', scheduleEl).forEach(r=> r.classList.add('collapsed')); });
 
-// ====== 4) Live read from Firestore (visible to everyone) ======
-async function loadFromFirestoreOnce(){
+// ===== 3) Read latest schedule (everyone) =====
+async function loadOnce(){
   try {
     const snap = await getDoc(SCHEDULE_DOC);
     const data = snap.exists() ? snap.data() : null;
     if (data && Array.isArray(data.schedule) && typeof data.startDate === 'string'){
       const start = parseDateInput(data.startDate);
       if (start){
-        const normalized = normalizeItems(data.schedule);
-        validateNormalized(normalized);
-        render(normalized, start);
+        const normalized = Array.isArray(data.schedule)? data.schedule: [];
+        validateNormalized(normalizeItems(normalized));
+        render(normalizeItems(normalized), start);
         applyFilter();
         const first = document.querySelector('.round'); if (first) first.classList.remove('collapsed');
       }
@@ -141,38 +144,31 @@ async function loadFromFirestoreOnce(){
   } catch (e) { console.warn('Failed to load schedule:', e.message); }
 }
 
-// Real-time updates (optional; uncomment to enable)
+document.addEventListener('DOMContentLoaded', loadOnce);
+
+// Realtime updates (optional)
 onSnapshot(SCHEDULE_DOC, (snap)=>{
-  const data = snap.exists() ? snap.data() : null;
-  if (!data) return;
-  const start = parseDateInput(data.startDate);
-  if (!start) return;
-  const normalized = normalizeItems(Array.isArray(data.schedule)?data.schedule:[]);
-  try { validateNormalized(normalized); } catch { /* ignore render if invalid */ return; }
-  render(normalized, start); applyFilter();
+  const data = snap.exists() ? snap.data() : null; if (!data) return;
+  const start = parseDateInput(data.startDate); if (!start) return;
+  const normalized = Array.isArray(data.schedule)? data.schedule: [];
+  try { validateNormalized(normalizeItems(normalized)); } catch { return; }
+  render(normalizeItems(normalized), start); applyFilter();
   const first = document.querySelector('.round'); if (first) first.classList.remove('collapsed');
   if (startDateInput) startDateInput.value = data.startDate;
 });
 
-// Initial load
-document.addEventListener('DOMContentLoaded', loadFromFirestoreOnce);
-
-// ====== 5) Admin: Publish to Firestore ======
+// ===== 4) Publish (requires Auth per Firestore Rules Option B) =====
 publishBtn.addEventListener('click', async ()=>{
   try{
     showError('');
+    const user = auth.currentUser; if (!user) throw new Error('Please sign in to publish.');
     const file=fileInput.files?.[0]; if(!file) throw new Error('Please choose or drop a schedule JSON file.');
     const startISO=startDateInput.value; const start=parseDateInput(startISO); if(!start) throw new Error('Please pick a valid league start date.');
     const fileData=await readJsonFile(file);
     const normalized=normalizeItems(Array.isArray(fileData)?fileData:[]);
     validateNormalized(normalized);
 
-    await setDoc(SCHEDULE_DOC, {
-      startDate: startISO,
-      schedule: fileData,
-      updatedAt: serverTimestamp()
-    });
-
-    alert('Schedule published to Firestore. Everyone will see it on refresh (or instantly via realtime).');
+    await setDoc(SCHEDULE_DOC, { startDate: startISO, schedule: fileData, updatedAt: serverTimestamp() });
+    alert('Schedule published. Viewers will see it instantly.');
   }catch(e){ showError(e.message || String(e)); }
 });
