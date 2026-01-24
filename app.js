@@ -19,11 +19,9 @@
   const roundNav = byId('roundNav');
   const searchInput = byId('search');
 
-  // Surface unexpected errors in the UI too
   window.addEventListener('error', (e)=> showError(e.message || String(e)) );
   window.addEventListener('unhandledrejection', (e)=> showError(e.reason?.message || String(e.reason)) );
 
-  // ===== Firebase (CDN) dynamic import =====
   async function loadFirebase(){
     const v = '11.0.0';
     try {
@@ -38,7 +36,7 @@
     }
   }
 
-  // ===== Replace with your Firebase web config =====
+  // Inserted real config for kcschedule
   const firebaseConfig = {
     apiKey: "AIzaSyA_PzKtYWZqRkOdJBakWsa6I5KPx0idm6E",
     authDomain: "kcschedule.firebaseapp.com",
@@ -59,7 +57,6 @@
     const { doc } = fs; _docRef = (path) => doc(db, ...path.split('/'));
   }
 
-  // ===== Utilities =====
   function showError(msg){ errorBox.textContent = msg; errorBox.hidden = !msg; }
   function parseDateInput(value){ const parts=value?.split('-'); if(!parts||parts.length!==3) return null; const [y,m,d]=parts.map(Number); const dt=new Date(y,m-1,d); return isNaN(dt)?null:dt; }
   function addDays(date, days){ const dt=new Date(date); dt.setDate(dt.getDate()+days); return dt; }
@@ -123,7 +120,6 @@
   expandAllBtn.addEventListener('click', ()=>{ $$('.round', scheduleEl).forEach(r=> r.classList.remove('collapsed')); });
   collapseAllBtn.addEventListener('click', ()=>{ $$('.round', scheduleEl).forEach(r=> r.classList.add('collapsed')); });
 
-  // ===== Firestore: Load for everyone =====
   async function fetchPublished(){
     try{
       if (!_docRef) { console.warn('[viewer] Firestore not ready yet'); return; }
@@ -145,7 +141,6 @@
     }catch(e){ showError('Load failed: ' + (e?.message || e)); }
   }
 
-  // ===== Firestore: realtime updates =====
   function listenRealtime(){
     try{
       if (!_docRef) return;
@@ -164,7 +159,6 @@
     }catch(e){ console.warn('Realtime disabled:', e?.message || e); }
   }
 
-  // ===== Admin: Save & Publish to Firestore =====
   loadBtn.addEventListener('click', async ()=>{
     try{
       showError('');
@@ -175,7 +169,6 @@
       const normalized = normalizeItems(Array.isArray(data)?data:[]);
       validateNormalized(normalized);
 
-      // disable button while saving to prevent double clicks
       loadBtn.disabled = true; loadBtn.textContent = 'Publishing…';
       const ref = _docRef('league/current');
       await _setDoc(ref, { startDate: startISO, schedule: data, updatedAt: _serverTimestamp() });
@@ -185,7 +178,6 @@
     finally{ loadBtn.disabled = false; loadBtn.textContent = 'Save & Publish'; }
   });
 
-  // ===== Init =====
   document.addEventListener('DOMContentLoaded', async ()=>{
     try{
       await initFirestore();
