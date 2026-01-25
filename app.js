@@ -26,7 +26,7 @@ const auth = getAuth(app);
 
 signInAnonymously(auth)
   .then(() => {
-    //console.info('Signed in anonymously');
+    // console.info('Signed in anonymously');
   })
   .catch((err) => {
     // Non-fatal for reads; writes needing auth will fail until this succeeds
