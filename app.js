@@ -2,9 +2,8 @@
 // Loads schedule from Firestore `matches` collection.
 // Stores/reads league start date from Firestore `settings/league` document.
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js';
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js';
-import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // --- Firebase Config (provided) ---
 const firebaseConfig = {
@@ -19,20 +18,6 @@ const firebaseConfig = {
 
 // Init
 const app = initializeApp(firebaseConfig);
-
-// Initialize Auth and sign in anonymously so Firestore rules that require
-// request.auth != null will pass for writes like settings/league.
-const auth = getAuth(app);
-
-signInAnonymously(auth)
-  .then(() => {
-    //console.info('Signed in anonymously');
-  })
-  .catch((err) => {
-    // Non-fatal for reads; writes needing auth will fail until this succeeds
-    console.error('Anonymous sign-in failed:', err);
-  });
-
 const db = getFirestore(app);
 
 // DOM helpers
