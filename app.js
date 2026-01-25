@@ -4,7 +4,7 @@
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js';
 
 // --- Firebase Config (provided) ---
 const firebaseConfig = {
@@ -26,7 +26,7 @@ const auth = getAuth(app);
 
 signInAnonymously(auth)
   .then(() => {
-    //console.log('Signed in anonymously');
+    console.log('Signed in anonymously');
   })
   .catch((err) => {
     // Non-fatal for reads; writes needing auth will fail until this succeeds
