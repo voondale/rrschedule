@@ -100,11 +100,16 @@ function render(items, startDate){
       gHeader.innerHTML = `<h4 class="group-title">${escapeHtml(players.join(' • '))}</h4>`;
       const list=document.createElement('div'); list.className='matches';
       gm.forEach((m)=>{
-        const row=document.createElement('div'); row.className='match';
+        const completed = Boolean(m.completed);
+        const row=document.createElement('div'); row.className=`match${completed ? ' completed' : ''}`;
         const t1=(m.team1??'').toString(); const t2=(m.team2??'').toString();
         row.dataset.teams=(t1+' '+t2).toLowerCase();
+        row.dataset.completed = completed ? 'true' : 'false';
         const left=escapeHtml(t1); const right=escapeHtml(t2); const label=escapeHtml(m.matchId ?? `#${m._seq}`);
-        row.innerHTML=`<div><span class="num">${label}</span> ${left}</div><div class="vs">vs</div><div>${right}</div>`;
+        const statusClass = completed ? 'match-status completed' : 'match-status pending';
+        const statusLabel = completed ? 'Completed' : 'Not completed';
+        const status = `<span class="${statusClass}">${statusLabel}</span>`;
+        row.innerHTML=`<div><span class="num">${label}</span> ${left}</div><div class="vs">vs</div><div class="match-side">${right}${status}</div>`;
         list.appendChild(row);
       });
       groupWrap.appendChild(gHeader); groupWrap.appendChild(list); section.appendChild(groupWrap);
@@ -156,10 +161,14 @@ async function saveStartDateToFirestore(){
 }
 
 async function loadMatchesFromFirestore(){
-  const qSnap = await getDocs(query(collection(db, 'matches'), orderBy('round')));
+  const [matchesSnap, resultsSnap] = await Promise.all([
+    getDocs(query(collection(db, 'matches'), orderBy('round'))),
+    getDocs(collection(db, 'results'))
+  ]);
+  const completedMatchIds = new Set(resultsSnap.docs.map(d => d.id));
   const perRound = Object.create(null);
   const items = [];
-  for (const d of qSnap.docs){
+  for (const d of matchesSnap.docs){
     const data = d.data() || {};
     const round = Number(data.round);
     const team1 = (data.team1 ?? '').toString();
@@ -167,7 +176,7 @@ async function loadMatchesFromFirestore(){
     if (!Number.isFinite(round) || !team1 || !team2) continue;
     perRound[round] = (perRound[round]||0) + 1; const seq = perRound[round];
     const matchId = (typeof data.matchId === 'string' && data.matchId.trim()) ? data.matchId.trim() : `R${round}M${seq}`;
-    items.push({ round, team1, team2, matchId, _seq: seq });
+    items.push({ round, team1, team2, matchId, completed: completedMatchIds.has(d.id), _seq: seq });
   }
   return items;
 }

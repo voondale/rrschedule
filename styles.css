@@ -45,10 +45,16 @@ button { cursor: pointer; padding: 10px 14px; border-radius: 8px; border: 1px so
 .collapsed .chev { transform: rotate(-90deg); }
 .matches { padding: 12px 14px 14px; border-top: 1px solid rgba(255,255,255,0.06); }
 .match { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); margin-top: 8px; }
+.match-side { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .match .vs { color: var(--muted); }
 .match .num { color: var(--muted); margin-right: 6px; }
+.match.completed { background: rgba(45,212,191,0.08); border-color: rgba(45,212,191,0.35); }
+.match-status { flex-shrink: 0; padding: 4px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
+.match-status.completed { background: rgba(45,212,191,0.16); color: var(--ok); }
+.match-status.pending { background: rgba(159,179,200,0.14); color: var(--muted); }
 .app-footer { text-align: center; color: var(--muted); padding: 30px 20px; }
 @media (max-width: 640px) {
   .match { grid-template-columns: 1fr; }
   .match .vs { display: none; }
+  .match-side { justify-content: flex-start; flex-wrap: wrap; }
 }
